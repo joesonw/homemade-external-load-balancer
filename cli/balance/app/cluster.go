@@ -8,10 +8,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/client-go/tools/cache"
+	"log"
 	"pkg/annotations"
 	"strconv"
 	"time"
-	"log"
 )
 
 func (c *Client) startWatchCluster() {
@@ -81,7 +81,7 @@ func (c *Client) handleService(svc *corev1.Service) {
 	basename := fmt.Sprintf("%s.%s", c.config.SubDomain, c.config.Domain)
 
 	for _, ingress := range svc.Status.LoadBalancer.Ingress {
-		name := ingress.Hostname[0:len(ingress.Hostname)-len(basename) - 1]
+		name := ingress.Hostname[0 : len(ingress.Hostname)-len(basename)-1]
 		if name != alias {
 			hostname = name
 		}
@@ -91,21 +91,41 @@ func (c *Client) handleService(svc *corev1.Service) {
 		DNSName: fmt.Sprintf("%s.%s.svc.cluster.local", svc.Name, svc.Namespace),
 		Port:    port.Port,
 	}
-	svc.Status = corev1.ServiceStatus{
-		LoadBalancer: corev1.LoadBalancerStatus{
-			Ingress: []corev1.LoadBalancerIngress{
-				{
-					Hostname: fmt.Sprintf("%s.%s", alias, basename),
-				},
-				{
-					Hostname: fmt.Sprintf("%s.%s", hostname, basename),
+
+	aliasHostmame := fmt.Sprintf("%s.%s", alias, basename)
+	defaultHostname := fmt.Sprintf("%s.%s", hostname, basename)
+
+	aliasFound := false
+	defaultFound := false
+	for _, ingress := range svc.Status.LoadBalancer.Ingress {
+		if ingress.Hostname == aliasHostmame {
+			aliasFound = true
+		} else if ingress.Hostname == defaultHostname {
+			defaultFound = true
+		}
+	}
+	if !aliasFound || !defaultFound {
+		svc.Status = corev1.ServiceStatus{
+			LoadBalancer: corev1.LoadBalancerStatus{
+				Ingress: []corev1.LoadBalancerIngress{
+					{
+						Hostname: aliasHostmame,
+					},
+					{
+						Hostname: defaultHostname,
+					},
 				},
 			},
-		},
+		}
+
+		log.Printf("registered %s for service %s\n", aliasHostmame, svc.Name)
+		log.Printf("registered %s for service %s\n", defaultHostname, svc.Name)
+
+		c.client.CoreV1().Services(svc.Namespace).UpdateStatus(svc)
 	}
-	log.Printf("registered %s for service %s\n", fmt.Sprintf("%s.%s", alias, basename), svc.Name)
-	log.Printf("registered %s for service %s\n", fmt.Sprintf("%s.%s", hostname, basename), svc.Name)
-	c.client.CoreV1().Services(svc.Namespace).UpdateStatus(svc)
+
+	log.Printf("refreshed %s for service %s\n", aliasHostmame, svc.Name)
+	log.Printf("refreshed %s for service %s\n", defaultHostname, svc.Name)
 	c.serviceMapping[alias] = dm
 	c.serviceMapping[hostname] = dm
 	c.refreshProxy()

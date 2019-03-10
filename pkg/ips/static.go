@@ -8,7 +8,7 @@ type Static struct {
 	ip string
 }
 
-func NewStatic(cfg *StaticConfig) (*Static, error) {
+func NewStatic(cfg *StaticConfig) (Interface, error) {
 	return &Static{ip: cfg.IP}, nil
 }
 
