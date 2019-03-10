@@ -25,9 +25,9 @@ apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    local-load-balancer/alias: aria2
-    local-load-balancer/enable: "true"
-    local-load-balancer/port: http
+    helb/alias: aria2
+    helb/enable: "true"
+    helb/port: http
   name: aria2
   namespace: default
 spec:

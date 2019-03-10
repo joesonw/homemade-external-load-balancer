@@ -20,7 +20,7 @@ spec:
           configMap:
             name: helb
       containers:
-      - image: joesonw/helb:0.1.3
+      - image: joesonw/helb:latest
         name: helb
         ports:
         - name: dns
