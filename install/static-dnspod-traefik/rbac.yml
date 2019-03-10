@@ -4,7 +4,7 @@ metadata:
   name: helb
 rules:
 - apiGroups: [""]
-  resources: ["services"]
+  resources: ["services", "services/status"]
   verbs: ["*"]
 ---
 kind: ClusterRoleBinding
