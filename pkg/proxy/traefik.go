@@ -1,35 +1,11 @@
 package proxy
 
 import (
+	"net/http"
+	"fmt"
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"net/http"
 )
-
-/*
-{
-    "frontends": {
-      "aria2-web.hpc.cnwc.cloud": {
-        "routes": {
-          "aria2-web.hpc.cnwc.cloud": {
-            "rule": "Host:aria2-web.hpc.cnwc.cloud"
-          }
-        },
-        "backend": "aria2-web.hpc.cnwc.cloud"
-      }
-    },
-    "backends": {
-      "aria2-web.hpc.cnwc.cloud": {
-        "servers": {
-          "service": {
-            "url": "http://aria2-web.default.svc.cluster.local"
-          }
-        }
-      }
-    }
- }
-*/
 
 type traefikRequest struct {
 	Frontends map[string]*traefikRequestFrontend `json:"frontends,omitempty"`
