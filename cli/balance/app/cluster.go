@@ -13,15 +13,6 @@ import (
 )
 
 func (c *Client) startWatchCluster() {
-	services, err := c.client.CoreV1().Services(metav1.NamespaceAll).List(metav1.ListOptions{})
-	if err != nil {
-		panic(err)
-	}
-
-	for _, svc := range services.Items {
-		c.handleService(&svc)
-	}
-
 	watcher, err := c.client.CoreV1().Services(metav1.NamespaceAll).Watch(metav1.ListOptions{})
 	if err != nil {
 		panic(err)
@@ -107,7 +98,10 @@ func (c *Client) handleService(svc *corev1.Service) {
 		},
 	}
 
-	c.client.CoreV1().Services(svc.Namespace).UpdateStatus(svc)
+	_, err := c.client.CoreV1().Services(svc.Namespace).UpdateStatus(svc)
+	if err != nil {
+		log.Printf("unable to update service %s: %s", svc.Name, err.Error())
+	}
 	log.Printf("registered %s for service %s\n", aliasHostmame, svc.Name)
 	log.Printf("registered %s for service %s\n", defaultHostname, svc.Name)
 	c.serviceMapping[alias] = dm
