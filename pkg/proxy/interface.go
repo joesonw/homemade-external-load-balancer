@@ -1,9 +1,10 @@
 package proxy
 
 type Record struct {
-	URL  string
-	Host string
-	Port int32
+	URL    string
+	Host   string
+	Port   int32
+	Secure bool
 }
 
 type Interface interface {

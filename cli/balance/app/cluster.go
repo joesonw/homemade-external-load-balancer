@@ -6,41 +6,40 @@ import (
 	"github.com/satori/go.uuid"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
-	"k8s.io/client-go/tools/cache"
+	"k8s.io/apimachinery/pkg/watch"
 	"log"
 	"pkg/annotations"
 	"strconv"
-	"time"
 )
 
 func (c *Client) startWatchCluster() {
-	watchList := cache.NewListWatchFromClient(c.client.CoreV1().RESTClient(), "services", metav1.NamespaceAll, fields.Everything())
-	store, controller := cache.NewInformer(
-		watchList,
-		&corev1.Service{},
-		time.Second*30,
-		cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				c.handleService(obj.(*corev1.Service))
-			},
-			UpdateFunc: func(oldObj interface{}, newObj interface{}) {
-				oldSvc := oldObj.(*corev1.Service)
-				newSvc := oldObj.(*corev1.Service)
-				for _, ingress := range oldSvc.Status.LoadBalancer.Ingress {
-					delete(c.serviceMapping, ingress.Hostname)
-				}
-				c.handleService(newSvc)
-			},
-		},
-	)
-
-	for _, obj := range store.List() {
-		c.handleService(obj.(*corev1.Service))
+	services, err := c.client.CoreV1().Services(metav1.NamespaceAll).List(metav1.ListOptions{})
+	if err != nil {
+		panic(err)
 	}
 
-	stop := make(chan struct{})
-	controller.Run(stop)
+	for _, svc := range services.Items {
+		c.handleService(&svc)
+	}
+
+	watcher, err := c.client.CoreV1().Services(metav1.NamespaceAll).Watch(metav1.ListOptions{})
+	if err != nil {
+		panic(err)
+	}
+
+	for r := range watcher.ResultChan() {
+		svc := r.Object.(*corev1.Service)
+		if r.Type == watch.Deleted {
+			for _, ingress := range svc.Status.LoadBalancer.Ingress {
+				delete(c.serviceMapping, ingress.Hostname)
+			}
+		} else if r.Type == watch.Modified {
+			c.handleService(svc)
+		} else if r.Type == watch.Added {
+			c.handleService(svc)
+		}
+	}
+
 }
 
 func (c *Client) handleService(svc *corev1.Service) {
@@ -95,37 +94,22 @@ func (c *Client) handleService(svc *corev1.Service) {
 	aliasHostmame := fmt.Sprintf("%s.%s", alias, basename)
 	defaultHostname := fmt.Sprintf("%s.%s", hostname, basename)
 
-	aliasFound := false
-	defaultFound := false
-	for _, ingress := range svc.Status.LoadBalancer.Ingress {
-		if ingress.Hostname == aliasHostmame {
-			aliasFound = true
-		} else if ingress.Hostname == defaultHostname {
-			defaultFound = true
-		}
-	}
-	if !aliasFound || !defaultFound {
-		svc.Status = corev1.ServiceStatus{
-			LoadBalancer: corev1.LoadBalancerStatus{
-				Ingress: []corev1.LoadBalancerIngress{
-					{
-						Hostname: aliasHostmame,
-					},
-					{
-						Hostname: defaultHostname,
-					},
+	svc.Status = corev1.ServiceStatus{
+		LoadBalancer: corev1.LoadBalancerStatus{
+			Ingress: []corev1.LoadBalancerIngress{
+				{
+					Hostname: aliasHostmame,
+				},
+				{
+					Hostname: defaultHostname,
 				},
 			},
-		}
-
-		log.Printf("registered %s for service %s\n", aliasHostmame, svc.Name)
-		log.Printf("registered %s for service %s\n", defaultHostname, svc.Name)
-
-		c.client.CoreV1().Services(svc.Namespace).UpdateStatus(svc)
+		},
 	}
 
-	log.Printf("refreshed %s for service %s\n", aliasHostmame, svc.Name)
-	log.Printf("refreshed %s for service %s\n", defaultHostname, svc.Name)
+	c.client.CoreV1().Services(svc.Namespace).UpdateStatus(svc)
+	log.Printf("registered %s for service %s\n", aliasHostmame, svc.Name)
+	log.Printf("registered %s for service %s\n", defaultHostname, svc.Name)
 	c.serviceMapping[alias] = dm
 	c.serviceMapping[hostname] = dm
 	c.refreshProxy()
