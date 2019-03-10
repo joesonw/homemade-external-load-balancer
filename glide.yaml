@@ -1,0 +1,21 @@
+package: .
+import:
+- package: github.com/golang/protobuf
+  version: ~1.1.0
+  subpackages:
+  - protoc-gen-go
+- package: k8s.io/client-go
+  subpackages:
+  - '...'
+- package: k8s.io/api
+  subpackages:
+  - '...'
+- package: k8s.io/apimachinery
+  subpackages:
+  - '...'
+- package: github.com/miekg/dns
+  version: ^1.1.4
+- package: github.com/satori/go.uuid
+  version: ^1.2.0
+- package: gopkg.in/yaml.v2
+  version: ^2.2.2

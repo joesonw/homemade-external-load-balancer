@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: helb
+data:
+  config.yaml: |
+    host: ""
+    port: 53
+    domain: <YOUR DOMAIN>
+    subDomain: <YOUR SUBDOMAIN>
+    ttl: 600s
+    syncPeriod: 300s
+    providers:
+      nameserver:
+        dnspod:
+          token: <YOUR DNSPOD API ID AND TOKEN>
+      ip:
+        static:
+          ip: <YOUR IP>
+      proxy:
+        traefik:
+          url: http://<IN CLUSTER TRAEFIK DNSAME/IP>:8080/api/providers/rest

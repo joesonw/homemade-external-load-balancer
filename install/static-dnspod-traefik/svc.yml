@@ -1,0 +1,19 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: helb
+spec:
+  selector:
+    app: helb
+  ports:
+    externalIPs:
+    - <YOUR IP>
+    sessionAffinity: None
+    - protocol: UDP
+      port: 53
+      targetPort: 53
+      name: dns
+    - protocol: TCP
+      port: 53
+      targetPort: 53
+      name: dns-tcp

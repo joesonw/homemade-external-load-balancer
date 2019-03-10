@@ -1,0 +1,21 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: helb
+rules:
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["*"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: helb
+subjects:
+- kind: ServiceAccount
+  name: helb
+  namespace: default
+roleRef:
+  kind: ClusterRole
+  name: helb
+  apiGroup: rbac.authorization.k8s.io

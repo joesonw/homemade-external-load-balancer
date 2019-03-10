@@ -1,0 +1,36 @@
+kind: Deployment
+apiVersion: extensions/v1beta1
+metadata:
+  name: helb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: helb
+  template:
+    metadata:
+      labels:
+        app: helb
+        name: helb
+    spec:
+      terminationGracePeriodSeconds: 60
+      serviceAccountName: helb
+      volumes:
+        - name: configmap
+          configMap:
+            name: helb
+      containers:
+      - image: joesonw/helb:0.1.3
+        name: helb
+        ports:
+        - name: dns
+          containerPort: 53
+          protocol: UDP
+        - name: dns-tcp
+          containerPort: 53
+          protocol: TCP
+        volumeMounts:
+          - name: configmap
+            mountPath: /config
+        args:
+        - /config/config.yaml
