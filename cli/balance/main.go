@@ -2,17 +2,18 @@ package main
 
 import (
 	"cli/balance/app"
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"log"
 	"os"
 	"path/filepath"
 	"pkg/ips"
 	"pkg/nameservers"
 	"pkg/proxy"
+
+	"gopkg.in/yaml.v2"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 func main() {

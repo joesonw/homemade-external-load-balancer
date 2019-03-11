@@ -73,6 +73,9 @@ func (in *Dnspod) Set(ctx context.Context, ttl int32, domain, name, ip string) e
 		}
 		result := recordListResponse{}
 		err = json.Unmarshal(bytes, &result)
+		if err != nil {
+			return err
+		}
 		if result.Status == nil {
 			return fmt.Errorf("unkown http error")
 		}
@@ -116,6 +119,9 @@ func (in *Dnspod) Set(ctx context.Context, ttl int32, domain, name, ip string) e
 		}
 		result := recordModifyResponse{}
 		err = json.Unmarshal(bytes, &result)
+		if err != nil {
+			return err
+		}
 		if result.Status == nil {
 			return fmt.Errorf("unkown http error")
 		}

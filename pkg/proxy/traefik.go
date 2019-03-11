@@ -1,10 +1,10 @@
 package proxy
 
 import (
-	"net/http"
-	"fmt"
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"net/http"
 )
 
 type traefikRequest struct {
@@ -13,8 +13,9 @@ type traefikRequest struct {
 }
 
 type traefikRequestFrontend struct {
-	Routes  map[string]*traefikRequestFrontendRoute `json:"routes,omitempty"`
-	Backend string                                  `json:"backend,omitempty"`
+	PassTLSCert bool                                    `json:"passTLSCert,omitempty"`
+	Routes      map[string]*traefikRequestFrontendRoute `json:"routes,omitempty"`
+	Backend     string                                  `json:"backend,omitempty"`
 }
 
 type traefikRequestFrontendRoute struct {
@@ -55,6 +56,7 @@ func (in *Traefik) Refresh(records []*Record) error {
 		Backends:  make(map[string]*traefikRequestBackend),
 	}
 	for _, record := range records {
+
 		config.Frontends[record.URL] = &traefikRequestFrontend{
 			Backend: record.URL,
 			Routes: map[string]*traefikRequestFrontendRoute{
@@ -63,10 +65,15 @@ func (in *Traefik) Refresh(records []*Record) error {
 				},
 			},
 		}
+		p := "http"
+		if record.Secure {
+			p = "https"
+			config.Frontends[record.URL].PassTLSCert = true
+		}
 		config.Backends[record.URL] = &traefikRequestBackend{
 			Servers: &traefikRequestBackendServer{
 				Service: &traefikRequestBackendServerService{
-					URL: fmt.Sprintf("http://%s:%d", record.Host, record.Port),
+					URL: fmt.Sprintf("%s://%s:%d", p, record.Host, record.Port),
 				},
 			},
 		}
@@ -76,6 +83,7 @@ func (in *Traefik) Refresh(records []*Record) error {
 	if err != nil {
 		return err
 	}
+	println(string(body))
 
 	req, err := http.NewRequest(http.MethodPut, in.url, bytes.NewReader(body))
 	if err != nil {

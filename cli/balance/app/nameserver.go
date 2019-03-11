@@ -1,17 +1,16 @@
 package app
 
 import (
-	"time"
-	"log"
 	"context"
+	"log"
+	"time"
 )
 
-func (c *Client) startSyncNameServer() error {
+func (c *Client) startSyncNameServer() {
 	c.doSyncNameServer()
 	for range time.Tick(c.config.SyncPeriod) {
 		c.doSyncNameServer()
 	}
-	return nil
 }
 
 func (c *Client) doSyncNameServer() {

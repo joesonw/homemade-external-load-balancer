@@ -3,13 +3,14 @@ package app
 import (
 	"encoding/hex"
 	"fmt"
-	"github.com/satori/go.uuid"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
 	"log"
 	"pkg/annotations"
 	"strconv"
+
+	uuid "github.com/satori/go.uuid"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 func (c *Client) startWatchCluster() {
@@ -20,13 +21,14 @@ func (c *Client) startWatchCluster() {
 
 	for r := range watcher.ResultChan() {
 		svc := r.Object.(*corev1.Service)
-		if r.Type == watch.Deleted {
+		switch r.Type {
+		case watch.Deleted:
 			for _, ingress := range svc.Status.LoadBalancer.Ingress {
 				delete(c.serviceMapping, ingress.Hostname)
 			}
-		} else if r.Type == watch.Modified {
+		case watch.Modified:
 			c.handleService(svc)
-		} else if r.Type == watch.Added {
+		case watch.Added:
 			c.handleService(svc)
 		}
 	}
@@ -45,21 +47,29 @@ func (c *Client) handleService(svc *corev1.Service) {
 	hex.Encode(buf, uuid.NewV4().Bytes())
 	hostname := string(buf)
 
-	var port *corev1.ServicePort
-	port = &svc.Spec.Ports[0]
+	port := &svc.Spec.Ports[0]
 	if alias != "" {
 		p, err := strconv.ParseInt(alias, 10, 64)
 		if err == nil {
 			for _, sp := range svc.Spec.Ports {
 				if sp.Port == int32(p) {
-					port = &sp
+					port = sp.DeepCopy()
 				}
 			}
 		} else {
 			for _, sp := range svc.Spec.Ports {
 				if sp.Name == alias {
-					port = &sp
+					port = sp.DeepCopy()
 				}
+			}
+		}
+	}
+	var httpsPort *corev1.ServicePort
+	httpsPortAnnnotation := svc.Annotations[annotations.HTTPSPort]
+	if httpsPortAnnnotation != "" {
+		for _, sp := range svc.Spec.Ports {
+			if sp.Name == httpsPortAnnnotation {
+				httpsPort = sp.DeepCopy()
 			}
 		}
 	}
@@ -80,6 +90,9 @@ func (c *Client) handleService(svc *corev1.Service) {
 	dm := &dnsMapping{
 		DNSName: fmt.Sprintf("%s.%s.svc.cluster.local", svc.Name, svc.Namespace),
 		Port:    port.Port,
+	}
+	if httpsPort != nil {
+		dm.SecurePort = httpsPort.Port
 	}
 
 	aliasHostmame := fmt.Sprintf("%s.%s", alias, basename)

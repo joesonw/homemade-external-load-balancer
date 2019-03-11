@@ -2,14 +2,16 @@ package app
 
 import (
 	"fmt"
-	"github.com/miekg/dns"
 	"log"
 	"strings"
+
+	"github.com/miekg/dns"
 )
 
 type dnsMapping struct {
-	DNSName string
-	Port    int32
+	DNSName    string
+	Port       int32
+	SecurePort int32
 }
 
 func (c *Client) startDNS() error {
@@ -23,11 +25,12 @@ func (c *Client) ServeDNS(res dns.ResponseWriter, req *dns.Msg) {
 	m.SetReply(req)
 	m.Compress = false
 
-	switch req.Opcode {
-	case dns.OpcodeQuery:
+	if req.Opcode == dns.OpcodeQuery {
 		c.handleDNSQuery(m)
 	}
-	res.WriteMsg(m)
+	if err := res.WriteMsg(m); err != nil {
+		log.Printf("uanble to write dns response: %s", err.Error())
+	}
 }
 
 func (c *Client) handleDNSQuery(m *dns.Msg) {
@@ -38,22 +41,20 @@ func (c *Client) handleDNSQuery(m *dns.Msg) {
 		return
 	}
 	for _, q := range m.Question {
-		switch q.Qtype {
-		case dns.TypeA:
-			{
-				if !strings.HasSuffix(q.Name, suffix) {
-					continue
-				}
-				serviceName := q.Name[0 : len(q.Name)-len(suffix)-1]
-				dm := c.serviceMapping[serviceName]
-				if dm == nil {
-					continue
-				}
-				r, err := dns.NewRR(fmt.Sprintf("%s A %s", q.Name, ip))
-				if err == nil {
-					m.Answer = append(m.Answer, r)
-				}
-			}
+		if q.Qtype != dns.TypeA {
+			continue
+		}
+		if !strings.HasSuffix(q.Name, suffix) {
+			continue
+		}
+		serviceName := q.Name[0 : len(q.Name)-len(suffix)-1]
+		dm := c.serviceMapping[serviceName]
+		if dm == nil {
+			continue
+		}
+		r, err := dns.NewRR(fmt.Sprintf("%s A %s", q.Name, ip))
+		if err == nil {
+			m.Answer = append(m.Answer, r)
 		}
 	}
 }

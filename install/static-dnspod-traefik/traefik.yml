@@ -4,10 +4,12 @@ metadata:
   name: traefik
 data:
   config.toml: |
-    defaultEntryPoints = ["http"]
+    defaultEntryPoints = ["http", "https"]
     [entryPoints]
       [entryPoints.http]
        address = ":80"
+      [entryPoints.https]
+       address = ":443"
     [rest]
       entryPoint = "traefik"
 ---

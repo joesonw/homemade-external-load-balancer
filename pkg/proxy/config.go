@@ -12,4 +12,3 @@ func New(cfg *Config) (Interface, error) {
 	}
 	return nil, fmt.Errorf("unsupported proxy provider")
 }
-
