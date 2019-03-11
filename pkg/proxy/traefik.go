@@ -78,7 +78,6 @@ func (in *Traefik) Refresh(records []*Record) error {
 	if err != nil {
 		return err
 	}
-	println(string(body))
 
 	req, err := http.NewRequest(http.MethodPut, in.url, bytes.NewReader(body))
 	if err != nil {

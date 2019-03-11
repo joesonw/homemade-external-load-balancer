@@ -7,32 +7,44 @@ import (
 	"pkg/annotations"
 	"strconv"
 
-	uuid "github.com/satori/go.uuid"
+	"time"
+
+	"github.com/satori/go.uuid"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/informers"
+	"k8s.io/client-go/tools/cache"
 )
 
 func (c *Client) startWatchCluster() {
-	watcher, err := c.client.CoreV1().Services(metav1.NamespaceAll).Watch(metav1.ListOptions{})
-	if err != nil {
-		panic(err)
-	}
+	resync := time.Second * 600
+	informerFactory := informers.NewSharedInformerFactory(c.client, resync)
+	serviceInformer := informerFactory.Core().V1().Services()
+	serviceInformer.Informer().AddEventHandlerWithResyncPeriod(
+		cache.ResourceEventHandlerFuncs{
+			AddFunc: func(obj interface{}) {
+				svc := obj.(*corev1.Service)
+				c.handleService(svc)
+			},
+			UpdateFunc: func(oldObj, newObj interface{}) {
+				oldSvc := oldObj.(*corev1.Service)
+				newSvc := newObj.(*corev1.Service)
+				for _, ingress := range oldSvc.Status.LoadBalancer.Ingress {
+					delete(c.serviceMapping, ingress.Hostname)
+				}
+				c.handleService(newSvc)
+			},
+			DeleteFunc: func(obj interface{}) {
+				svc := obj.(*corev1.Service)
+				for _, ingress := range svc.Status.LoadBalancer.Ingress {
+					delete(c.serviceMapping, ingress.Hostname)
+				}
+			},
+		},
+		resync,
+	)
 
-	for r := range watcher.ResultChan() {
-		svc := r.Object.(*corev1.Service)
-		switch r.Type {
-		case watch.Deleted:
-			for _, ingress := range svc.Status.LoadBalancer.Ingress {
-				delete(c.serviceMapping, ingress.Hostname)
-			}
-		case watch.Modified:
-			c.handleService(svc)
-		case watch.Added:
-			c.handleService(svc)
-		}
-	}
-
+	informerFactory.Start(wait.NeverStop)
 }
 
 func (c *Client) handleService(svc *corev1.Service) {
