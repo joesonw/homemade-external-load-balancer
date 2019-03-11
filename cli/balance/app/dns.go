@@ -9,9 +9,8 @@ import (
 )
 
 type dnsMapping struct {
-	DNSName    string
-	Port       int32
-	SecurePort int32
+	DNSName string
+	Port    int32
 }
 
 func (c *Client) startDNS() error {

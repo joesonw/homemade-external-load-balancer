@@ -14,14 +14,6 @@ func (c *Client) refreshProxy() {
 			Host: svc.DNSName,
 			Port: svc.Port,
 		})
-		if svc.SecurePort != 0 {
-			records = append(records, &proxy.Record{
-				URL:    fmt.Sprintf("%s.%s.%s", name, c.config.SubDomain, c.config.Domain),
-				Host:   svc.DNSName,
-				Port:   svc.SecurePort,
-				Secure: true,
-			})
-		}
 	}
 	err := c.proxy.Refresh(records)
 	if err != nil {

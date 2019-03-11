@@ -64,16 +64,6 @@ func (c *Client) handleService(svc *corev1.Service) {
 			}
 		}
 	}
-	var httpsPort *corev1.ServicePort
-	httpsPortAnnnotation := svc.Annotations[annotations.HTTPSPort]
-	if httpsPortAnnnotation != "" {
-		for _, sp := range svc.Spec.Ports {
-			if sp.Name == httpsPortAnnnotation {
-				httpsPort = sp.DeepCopy()
-			}
-		}
-	}
-
 	if port == nil {
 		return
 	}
@@ -90,9 +80,6 @@ func (c *Client) handleService(svc *corev1.Service) {
 	dm := &dnsMapping{
 		DNSName: fmt.Sprintf("%s.%s.svc.cluster.local", svc.Name, svc.Namespace),
 		Port:    port.Port,
-	}
-	if httpsPort != nil {
-		dm.SecurePort = httpsPort.Port
 	}
 
 	aliasHostmame := fmt.Sprintf("%s.%s", alias, basename)

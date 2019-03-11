@@ -65,15 +65,10 @@ func (in *Traefik) Refresh(records []*Record) error {
 				},
 			},
 		}
-		p := "http"
-		if record.Secure {
-			p = "https"
-			config.Frontends[record.URL].PassTLSCert = true
-		}
 		config.Backends[record.URL] = &traefikRequestBackend{
 			Servers: &traefikRequestBackendServer{
 				Service: &traefikRequestBackendServerService{
-					URL: fmt.Sprintf("%s://%s:%d", p, record.Host, record.Port),
+					URL: fmt.Sprintf("http://%s:%d", record.Host, record.Port),
 				},
 			},
 		}
