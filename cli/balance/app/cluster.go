@@ -39,6 +39,9 @@ func (c *Client) startWatchCluster() {
 			UpdateFunc: func(oldObj, newObj interface{}) {
 				oldSvc := oldObj.(*corev1.Service)
 				newSvc := newObj.(*corev1.Service)
+				if oldSvc.ResourceVersion == newSvc.ResourceVersion {
+					return
+				}
 				if oldSvc.Spec.Type != corev1.ServiceTypeLoadBalancer {
 					return
 				}
