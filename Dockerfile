@@ -1,4 +1,4 @@
-FROM golang:1.11 AS build
+FROM golang:1.12 AS build
 WORKDIR /go
 ADD . ./src/
 RUN CGO_ENABLED=0 GOOS=linux go build -o helb cli/balance

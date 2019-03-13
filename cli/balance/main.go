@@ -10,7 +10,12 @@ import (
 	"pkg/nameservers"
 	"pkg/proxy"
 
+	"crypto/tls"
+
+	"pkg/dns"
+
 	"gopkg.in/yaml.v2"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -45,7 +50,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	k8sClient, err := kubernetes.NewForConfig(k8sConfig)
+	clientset, err := kubernetes.NewForConfig(k8sConfig)
 	if err != nil {
 		log.Printf("unable to connect to cluster: %s\n", err.Error())
 		os.Exit(1)
@@ -66,17 +71,46 @@ func main() {
 	}
 	log.Printf("ip inited \n")
 
-	p, err := proxy.New(config.Providers.Proxy)
+	var cert tls.Certificate
+	if config.TLS != nil {
+		cert, err = tls.LoadX509KeyPair(config.TLS.Cert, config.TLS.Key)
+		if err != nil {
+			log.Printf("unable to read tls cert/key: %s\n", err.Error())
+			os.Exit(1)
+		}
+	}
+
+	proxyServer := proxy.New(clientset, &cert, config.Proxy.Host)
+	err = proxyServer.Start()
 	if err != nil {
-		log.Printf("unable to initiate proxy provider: %s\n", err.Error())
+		log.Printf("unable to start proxy server: %s\n", err.Error())
 		os.Exit(1)
 	}
 	log.Printf("proxy inited \n")
 
-	client := app.New(config, k8sClient, nameserver, ip, p)
+	dnsServer := dns.New(config.Domain, config.SubDomain, config.DNS.Host, config.DNS.Port, ip)
+	go func() {
+		err = dnsServer.StartUDP()
+		if err != nil {
+			log.Printf("unable to srtart dns udp: %s\n", err.Error())
+			os.Exit(1)
+		}
+	}()
+
+	go func() {
+		err = dnsServer.StartTCP()
+		if err != nil {
+			log.Printf("unable to srtart dns tcp: %s\n", err.Error())
+			os.Exit(1)
+		}
+	}()
+
+	client := app.New(config, clientset, nameserver, dnsServer, ip, proxyServer)
 	err = client.Start()
 	if err != nil {
 		log.Printf("unable to start load balancer: %s\n", err.Error())
 		os.Exit(1)
 	}
+
+	<-wait.NeverStop
 }

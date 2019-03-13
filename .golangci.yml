@@ -29,13 +29,9 @@ linters-settings:
   depguard:
     list-type: blacklist
     packages:
-      # logging is allowed only by logutils.Log, logrus
-      # is allowed to use only in logutils package
       - github.com/sirupsen/logrus
   misspell:
     locale: US
-  lll:
-    line-length: 140
   goimports:
     local-prefixes: github.com/golangci/golangci-lint
   gocritic:
@@ -49,6 +45,7 @@ linters-settings:
 linters:
   enable-all: true
   disable:
+    - lll
     - maligned
     - prealloc
     - gochecknoglobals
@@ -60,6 +57,9 @@ run:
 issues:
   exclude-rules:
     - text: "weak cryptographic primitive"
+      linters:
+        - gosec
+    - text: "G402: TLS InsecureSkipVerify set true"
       linters:
         - gosec
 
