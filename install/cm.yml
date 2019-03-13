@@ -4,8 +4,14 @@ metadata:
   name: helb
 data:
   config.yaml: |
-    host: ""
-    port: 53
+    dns:
+      host: ""
+      port: 53
+    proxy:
+      host: ""
+    tls:
+      key:
+      secret:
     domain: <YOUR DOMAIN>
     subDomain: <YOUR SUBDOMAIN>
     ttl: 600s
@@ -17,6 +23,3 @@ data:
       ip:
         static:
           ip: <YOUR IP>
-      proxy:
-        traefik:
-          url: http://<IN CLUSTER TRAEFIK DNSAME/IP>:8080/api/providers/rest

@@ -1,2 +1,4 @@
 vendor/
 glide.lock
+release/
+binaries/

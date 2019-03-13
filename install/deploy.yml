@@ -20,7 +20,7 @@ spec:
           configMap:
             name: helb
       containers:
-      - image: joesonw/helb:latest
+      - image: joesonw/helb:v1alpha1.0.0
         name: helb
         ports:
         - name: dns
@@ -28,6 +28,12 @@ spec:
           protocol: UDP
         - name: dns-tcp
           containerPort: 53
+          protocol: TCP
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        - name: https
+          containerPort: 443
           protocol: TCP
         volumeMounts:
           - name: configmap

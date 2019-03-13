@@ -1,42 +1,53 @@
 
 [English](./README.md) | 简体中文
 
-## Introduction
+## 介绍
+![Diagram](/images/diagram.png)
+![Diagram](/images/screenshot.png)
 
-工作当中，我们可以用到AWS ELB，阿里云SLB来访问我们的k8s集群服务。 如果我们自己搭建的话，又该如何呢？
+HELB (Homemade External Load-Balancer) 可以实现往常在云上才能看到的功能(AWS ELB + EKS or ALIYUN SLB + CSK)
 
-通过使用**HELB**(Homemade External Load-Balancer)，可以让你在自己的机器/集群上取得同样的效果
+## HELB能做些什么?
 
-## How to use?
+* 根据k8s节点进行请求负载均衡 ([why?](https://kubernetes.io/docs/tasks/access-application-cluster/create-external-load-balancer/#caveats-and-limitations-when-preserving-source-ips))
+* 用子域名来对服务进行DNS解析
+* 给暴露出来的服务提供自定义域名（含解析）访问，避免了硬记一些ip和端口号
 
-下面是一个简单的实例（我如何部署的）
+## 安装
 
-我自己有一个域名。在这个域名的基础上，我解析了一个二级域名的NS记录到集群，然后通过集群来做动态的三级域名解析
+> 请期待更多的例子
+ 目前请前往 [install](/install) 查看如何部署到k8s集群
 
-最后的结果是把可用的服务解析到Traefik的服务上， 通过Traefik来代理服务
+Because kubernetes pods requires port usage declaration upon creation, you port usages in services (see below) are limited to what you specified when you started up `HELB`
 
-![Diagram](/images/diagram.jpg)
+If you want unlimited access, try clone the repo and run `go -o helb build cli/balance` to build your own copy for bare-metal deployment.
 
-
-下面是一个如何让给服务被HELB识别出来的例子：
+## Example
 
 ```
 apiVersion: v1
 kind: Service
 metadata:
   annotations:
-    helb/alias: aria2
-    helb/enable: "true"
-    helb/port: http
-  name: aria2
-  namespace: default
+    helb.v1alpha/alias: code
+    helb.v1alpha/cert: default/codessl
+    helb.v1alpha/protocol: http
+    helb.v1alpha/secure-ports: https
+  name: code-server
 spec:
   ports:
   - name: http
     port: 80
     protocol: TCP
-    targetPort: 6800
+    targetPort: 8443
+  - name: https
+    port: 443
+    protocol: TCP
+    targetPort: 8443
   selector:
-    app: aria2
+    app: code-server
+  sessionAffinity: None
   type: LoadBalancer
+
 ```
+
