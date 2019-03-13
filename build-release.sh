@@ -33,3 +33,5 @@ if [[ "${FAILURES}" != "" ]]; then
   echo "${SCRIPT_NAME} failed on: ${FAILURES}"
   exit 1
 fi
+find ./install -type f -exec cat {} \; -exec echo '---' \; > install.yml
+

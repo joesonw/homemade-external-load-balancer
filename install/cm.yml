@@ -1,3 +1,4 @@
+# cm.yml
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -23,3 +24,4 @@ data:
       ip:
         static:
           ip: <YOUR IP>
+

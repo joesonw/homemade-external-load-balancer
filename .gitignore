@@ -2,3 +2,4 @@ vendor/
 glide.lock
 release/
 binaries/
+install.yml
