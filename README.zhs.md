@@ -7,7 +7,7 @@
 
 HELB (Homemade External Load-Balancer) 可以实现往常在云上才能看到的功能(AWS ELB + EKS or ALIYUN SLB + CSK)
 
-HELB能做些什么?
+## HELB能做些什么?
 
 * 根据k8s节点进行请求负载均衡 ([why?](https://kubernetes.io/docs/tasks/access-application-cluster/create-external-load-balancer/#caveats-and-limitations-when-preserving-source-ips))
 * 用子域名来对服务进行DNS解析

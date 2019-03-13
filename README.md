@@ -7,7 +7,7 @@
 
 HELB (Homemade External Load-Balancer) does what you would normally see in cloud providers (AWS ELB + EKS or ALIYUN SLB + CSK)
 
-What does HELB do ?
+## What does HELB do ?
 
 * Load balance traffic across nodes ([why?](https://kubernetes.io/docs/tasks/access-application-cluster/create-external-load-balancer/#caveats-and-limitations-when-preserving-source-ips))
 * Resolve sub-domain DNS for services
