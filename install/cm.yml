@@ -9,8 +9,6 @@ data:
       port: 53
     proxy:
       host: ""
-      port: 80
-      tlsPort: 443
     tls:
       key:
       secret:
