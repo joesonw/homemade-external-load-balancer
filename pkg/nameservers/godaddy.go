@@ -1,8 +1,10 @@
 package nameservers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -10,123 +12,117 @@ import (
 	"strings"
 )
 
-type recordListResponse struct {
-	Status  *responseStatus             `json:"status,omitempty"`
-	Records []*recordListResponseRecord `json:"records,omitempty"`
+type godaddyRecord struct {
+	Data string `json:"data,omitempty"`
+	Name string `json:"name,omitempty"`
+	TTL  int32  `json:"ttl,omitempty"`
+	Type string `json:"type,omitempty"`
 }
 
-type recordModifyResponse struct {
-	Status *responseStatus `json:"status,omitempty"`
+type GodaddyConfig struct {
+	URL    string `yaml:"url"`
+	Key    string `yaml:"key"`
+	Secret string `yaml:"secret"`
+	Prefix string `yaml:"prefix"`
 }
 
-type responseStatus struct {
-	Code    string `json:"code,omitempty"`
-	Message string `json:"message,omitempty"`
-}
-
-type recordListResponseRecord struct {
-	ID    string `json:"id,omitempty"`
-	Value string `json:"value,omitempty"`
-	Line  string `json:"line,omitempty"`
-}
-
-type DnspodConfig struct {
-	Token string `yaml:"token"`
-}
-
-type Dnspod struct {
-	config *DnspodConfig
+type Godaddy struct {
+	config *GodaddyConfig
 	client *http.Client
+	url    *url.URL
 }
 
-func NewDnspod(cfg *DnspodConfig) (Interface, error) {
-	return &Dnspod{
+func NewGodday(cfg *GodaddyConfig) (Interface, error) {
+	u, err := url.Parse(cfg.URL)
+	if err != nil {
+		return nil, err
+	}
+	return &Godaddy{
 		config: cfg,
 		client: &http.Client{},
+		url:    u,
 	}, nil
 }
 
-func (in *Dnspod) Set(ctx context.Context, ttl int32, domain, name, ip string) error {
-	var current *recordListResponseRecord
+func (in *Godaddy) Set(ctx context.Context, ttl int32, domain, name, ip string) error {
+	if err := in.set(ctx, ttl, domain, fmt.Sprintf("%s1", name), ip); err != nil {
+		return err
+	}
+	return in.set(ctx, ttl, domain, fmt.Sprintf("%s2", name), ip)
+}
+
+func (in *Godaddy) set(ctx context.Context, ttl int32, domain, name, ip string) error {
+	var current *godaddyRecord
+	p := fmt.Sprintf("/v1/domains/%s/records/A/%s%s", domain, in.config.Prefix, name)
 	{
-		form := url.Values{}
-		form.Set("login_token", in.config.Token)
-		form.Set("domain", domain)
-		form.Set("sub_domain", name)
-		form.Set("format", "json")
-		form.Set("record_type", "NS")
-		req, err := http.NewRequest(http.MethodPost, "https://dnsapi.cn/Record.List", strings.NewReader(form.Encode()))
+		u := url.URL{
+			Scheme: in.url.Scheme,
+			Host:   in.url.Host,
+			Path:   p,
+		}
+		req, err := http.NewRequest(http.MethodGet, u.String(), nil)
 		if err != nil {
 			return err
 		}
-		req.Header.Set("UserAgent", "home-made-external-load-balancer/0.1.0 (https://github.com/joesonw/homemade-external-load-balancer)")
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-		defer req.Body.Close()
+		req.Header.Set("Authorization", fmt.Sprintf("sso-key %s:%s", in.config.Key, in.config.Secret))
 		res, err := in.client.Do(req.WithContext(ctx))
 		if err != nil {
 			return err
 		}
 		defer res.Body.Close()
-		bytes, err := ioutil.ReadAll(res.Body)
+
+		resBytes, err := ioutil.ReadAll(res.Body)
 		if err != nil {
 			return err
 		}
-		result := recordListResponse{}
-		err = json.Unmarshal(bytes, &result)
+
+		if res.StatusCode != 200 {
+			return fmt.Errorf("unable to get godaddy record: %s", string(resBytes))
+		}
+
+		var result []*godaddyRecord
+		err = json.Unmarshal(resBytes, &result)
 		if err != nil {
 			return err
 		}
-		if result.Status == nil {
-			return fmt.Errorf("unkown http error")
-		}
-		if result.Status.Code != "1" {
-			return fmt.Errorf(result.Status.Message)
-		}
-		if len(result.Records) == 0 {
-			return fmt.Errorf("no current records were set")
-		}
-		current = result.Records[0]
+		current = result[0]
 	}
-	if strings.EqualFold(current.Value, ip+".") {
+	if strings.EqualFold(current.Data, ip) {
 		return nil
 	}
+
 	{
-		form := url.Values{}
-		form.Set("login_token", in.config.Token)
-		form.Set("domain", domain)
-		form.Set("sub_domain", name)
-		form.Set("format", "json")
-		form.Set("record_type", "NS")
-		form.Set("record_id", current.ID)
-		form.Set("record_line", current.Line)
-		form.Set("value", ip)
-		form.Set("ttl", fmt.Sprintf("%d", ttl))
-		req, err := http.NewRequest(http.MethodPost, "https://dnsapi.cn/Record.Modify", strings.NewReader(form.Encode()))
+		current.Data = ip
+		current.TTL = ttl
+		bodyBytes, err := json.Marshal(&[]*godaddyRecord{current})
 		if err != nil {
 			return err
 		}
-		req.Header.Set("UserAgent", "home-made-external-load-balancer/0.1.0 (https://github.com/joesonw/homemade-external-load-balancer)")
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+		u := url.URL{
+			Scheme: in.url.Scheme,
+			Host:   in.url.Host,
+			Path:   p,
+		}
+		req, err := http.NewRequest(http.MethodPut, u.String(), bytes.NewBuffer(bodyBytes))
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Authorization", fmt.Sprintf("sso-key %s:%s", in.config.Key, in.config.Secret))
+		req.Header.Set("Content-Type", "application/json")
 		defer req.Body.Close()
 		res, err := in.client.Do(req.WithContext(ctx))
 		if err != nil {
 			return err
 		}
+
 		defer res.Body.Close()
-		bytes, err := ioutil.ReadAll(res.Body)
+		resBytes, err := ioutil.ReadAll(res.Body)
 		if err != nil {
 			return err
 		}
-		result := recordModifyResponse{}
-		err = json.Unmarshal(bytes, &result)
-		if err != nil {
-			return err
-		}
-		if result.Status == nil {
-			return fmt.Errorf("unkown http error")
-		}
-		if result.Status.Code != "1" {
-			return fmt.Errorf(result.Status.Message)
+		if res.StatusCode != 200 {
+			return errors.New(string(resBytes))
 		}
 	}
 

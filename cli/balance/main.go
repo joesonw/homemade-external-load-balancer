@@ -39,13 +39,14 @@ func main() {
 
 	var k8sConfig *rest.Config
 	if config.Kubernetes != nil {
-		token, err := ioutil.ReadFile(config.Kubernetes.Token)
+		var token []byte
+		token, err = ioutil.ReadFile(config.Kubernetes.Token)
 		if err != nil {
 			log.Printf("unable to find prociess config: %s\n", err.Error())
 			os.Exit(1)
 		}
 		tlsClientConfig := rest.TLSClientConfig{}
-		if _, err := certutil.NewPool(config.Kubernetes.CA); err != nil {
+		if _, err = certutil.NewPool(config.Kubernetes.CA); err != nil {
 			log.Printf("unable to find prociess config: %s\n", err.Error())
 			os.Exit(1)
 		}
