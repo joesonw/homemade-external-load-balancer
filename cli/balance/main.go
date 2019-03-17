@@ -19,6 +19,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	certutil "k8s.io/client-go/util/cert"
 )
 
 func main() {
@@ -36,13 +37,34 @@ func main() {
 		os.Exit(1)
 	}
 
-	k8sConfig, err := rest.InClusterConfig()
-	if err != nil {
-		home := os.Getenv("HOME")
-		if home == "" {
-			home = os.Getenv("USERPROFILE")
+	var k8sConfig *rest.Config
+	if config.Kubernetes != nil {
+		token, err := ioutil.ReadFile(config.Kubernetes.Token)
+		if err != nil {
+			log.Printf("unable to find prociess config: %s\n", err.Error())
+			os.Exit(1)
 		}
-		k8sConfig, err = clientcmd.BuildConfigFromFlags("", filepath.Join(home, ".kube", "config"))
+		tlsClientConfig := rest.TLSClientConfig{}
+		if _, err := certutil.NewPool(config.Kubernetes.CA); err != nil {
+			log.Printf("unable to find prociess config: %s\n", err.Error())
+			os.Exit(1)
+		}
+		tlsClientConfig.CAFile = config.Kubernetes.CA
+		k8sConfig = &rest.Config{
+			Host:            config.Kubernetes.Host,
+			TLSClientConfig: tlsClientConfig,
+			BearerToken:     string(token),
+			BearerTokenFile: config.Kubernetes.Token,
+		}
+	} else {
+		k8sConfig, err = rest.InClusterConfig()
+		if err != nil {
+			home := os.Getenv("HOME")
+			if home == "" {
+				home = os.Getenv("USERPROFILE")
+			}
+			k8sConfig, err = clientcmd.BuildConfigFromFlags("", filepath.Join(home, ".kube", "config"))
+		}
 	}
 
 	if err != nil {
