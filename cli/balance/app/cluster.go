@@ -70,8 +70,8 @@ func (c *Client) startWatchCluster() {
 
 func (c *Client) removeService(svc *corev1.Service) {
 	for _, ingress := range svc.Status.LoadBalancer.Ingress {
-		c.dns.Add(ingress.Hostname)
-		c.dns.Add(ingress.Hostname)
+		c.dns.Remove(ingress.Hostname)
+		c.dns.Remove(ingress.Hostname)
 		c.proxy.RemoveService(ingress.Hostname)
 		log.Printf("removed %s service %s\n", ingress.Hostname, svc.Name)
 	}
@@ -119,8 +119,6 @@ func (c *Client) addService(svc *corev1.Service) {
 			Ingress: ingresses,
 		},
 	}
-
-	c.dns.Add(defaultHostname)
 
 	c.serviceCacheLock.Lock()
 	newSvc, err := c.client.CoreV1().Services(svc.Namespace).UpdateStatus(svc)
