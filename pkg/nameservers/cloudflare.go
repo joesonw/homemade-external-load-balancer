@@ -51,8 +51,6 @@ func NewCloudFlare(cfg *CloudFlareConfig) (Interface, error) {
 	}, nil
 }
 
-// https://api.cloudflare.com/client/v4/zones/fce7881b3a77aaa04d406459e121163c/dns_records
-
 func (in *CloudFlare) Set(ctx context.Context, ttl int32, domain, name, ip string) error {
 	xip := fmt.Sprintf("%s.xip.io", ip)
 	var current *cloudFlareRecord
